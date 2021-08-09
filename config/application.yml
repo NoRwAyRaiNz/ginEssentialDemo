@@ -1,0 +1,12 @@
+server:
+  #监听端口
+  port: 1016
+datasource:
+  #diverName:
+  host: 127.0.0.1
+  port: 3306
+  database: ginessential
+  username: root
+  password: LondonVic222
+  charset: utf8
+  loc: Asia/Shanghai

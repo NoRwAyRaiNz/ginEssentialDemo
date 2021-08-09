@@ -1,92 +1,45 @@
 package main
 
 import (
+	"ginEssential/common"
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"log"
-	"math/rand"
-	"net/http"
-	"time"
+	"github.com/spf13/viper"
+	"os"
 )
 
-type User struct {
-	gorm.Model
-	Name string `gorm:"type:varchar(20);not null"`
-	Telephone string `gorm:"type:varchar(110);not null;unique"`
-	Password string	`gorm:"size:255;not null"`
-}
-
-
-
 func main() {
-	dsn := "root:LondonVic222@tcp(127.0.0.1:3306)/ginessential?charset=utf8&parseTime=True&loc=Local"
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
-	db.AutoMigrate(&User{})
+	InitConfig()
 
+	db := common.InitDB()
+	db = db
 
 	r := gin.Default()
-	r.POST("/api/auth/register", func(ctx *gin.Context) {
-		//获取参数
-		name := ctx.PostForm("name")
-		telephone := ctx.PostForm("telephone")
-		password := ctx.PostForm("password")
-		//数据验证
-		if len(telephone) != 11 {
-			ctx.JSON(http.StatusUnprocessableEntity, gin.H{"code": 422, "msg": "手机号必须为11位"})//H是map[string]{interface}的别名
-			return
-		}
-		if len(password) < 6 {
-			ctx.JSON(http.StatusUnprocessableEntity,gin.H{"code": 422, "msg": "密码不能少于6位"})
-			return
-		}
-		//如果名称没有传，给一个10位随机字符串
-		if len(name) == 0 {
-			name = RandomString(10)
-		}
-		//判断手机号是否存在
-		log.Println(name,telephone,password)
+	r = CollectRoute(r)
+	//panic(r.Run()) // listen and serve on 0.0.0.0:8080
+	//监听端口
+	port := viper.GetString("server.port")
 
-		if isTelephoneExist(db, telephone) {
-			ctx.JSON(http.StatusUnprocessableEntity,gin.H{"code": 422, "msg": "用户已经存在"})
-			return
-		}
-		//创建用户
-		newUser := User{
-			Name:      name,
-			Telephone: telephone,
-			Password:  password,
-		}
-		db.Create(&newUser)
+	if port != "" {
+		panic(r.Run(":" + port))
+	}
 
-		//返回结果
-		ctx.JSON(200, gin.H{
-			"message": "注册成功",
-		})
-	})
-	panic(r.Run()) // listen and serve on 0.0.0.0:8080
 }
 
-func isTelephoneExist(db *gorm.DB, telephone string) bool {
-	var user User
-	db.Where("telephone = ?", telephone).First(&user)
-	if user.ID != 0 {
-		return true
-	}
-	return false
-}
+func InitConfig() {
+	//获取工作目录
+	workDir, _ := os.Getwd()
+	//设置要读取的配置文件名
+	viper.SetConfigName("application")
+	//设置要读取的配置文件类型
+	viper.SetConfigType("yml")
+	//读取要配置的文件路径
+	viper.AddConfigPath(workDir + "/config")
+	//
+	err := viper.ReadInConfig()
+	if err != nil {
 
-func RandomString(n int) string {
-	var letters = []byte("asdfghjklzxcvbnmqwertyuiopASDFGHJKLZXCVBNMQWERTYUIOP")
-	result := make([]byte, n)
-	rand.Seed(time.Now().Unix())
-	for i := range result {
-		result[i] = letters[rand.Intn(len(letters))]
 	}
-	return string(result)
+
 }
 
 //func InitDB() *gorm.DB {
